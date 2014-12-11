@@ -1,0 +1,142 @@
+<script type="text/javascript">
+	
+	// pageChanged & sizeChanged functions are needed in every model file
+	// other functions for model should also be in here to avoid conflicts
+	var textVideo = new function() {
+		// function called every time the page is viewed after it has initially loaded
+		this.pageChanged = function() {
+			this.loadVideo();
+		}
+		
+		// function called every time the size of the LO is changed
+		this.sizeChanged = function(pageChg) {
+			
+		}
+		
+		this.init = function() {
+			// text align
+			$("#textHolder").html(x_addLineBreaks(x_currentPageXML.childNodes[0].nodeValue));
+			var $panel = $("#pageContents .panel");
+			
+			var textAlign = x_currentPageXML.getAttribute("align"); // Left|Right|Top|Bottom
+			if (textAlign == "Top" || textAlign == "Bottom") {
+				if (textAlign == "Top") {
+					$("#pageContents").prepend($("#textHolder"));
+				}
+				$("#pageContents .mobileAlign").addClass("centerAlign");
+			} else if (textAlign == "Right") {
+				$panel.addClass("x_floatLeft");
+			} else {
+				$panel.addClass("x_floatRight");
+			}
+			
+			// transcript stuff
+			var transcriptTxt = x_currentPageXML.getAttribute("transcript");
+			if (transcriptTxt != undefined && transcriptTxt != "") {
+				var $transcript = $("#transcript");
+				$transcript
+					.hide()
+					.html(x_addLineBreaks(transcriptTxt));
+				
+				var btnLabel = x_currentPageXML.getAttribute("transcriptTabTxt"),
+					btnTip = x_currentPageXML.getAttribute("transcriptTabTip");
+				
+				if (btnLabel == undefined) {
+					btnLabel = "Transcript";
+					btnTip = "Transcript";
+				}
+				
+				$("#transcriptBtn")
+					.button({
+						label:			btnLabel,
+						description:	btnTip // transcriptTabWidth not used as width is done automatically
+					})
+					.data({
+						"up"			:true,
+						"transcriptTag"	:$transcript
+					})
+					.click(function() {
+						$this = $(this);
+						if ($this.data("up") == true) {
+							$this.data("transcriptTag").slideDown();
+							$this.data("up", false);
+						} else {
+							$this.data("transcriptTag").slideUp();
+							$this.data("up", true);
+						}
+					});
+			} else {
+				$("#transcriptHolder").remove();
+			}
+			
+			var $pageVideo = $("#pageVideo"),
+				videoDimensions = [320,240];
+			
+			if (x_currentPageXML.getAttribute("movieSize") != "" && x_currentPageXML.getAttribute("movieSize") != undefined) {
+				var dimensions = x_currentPageXML.getAttribute("movieSize").split(",");
+				if (dimensions[0] != 0 && dimensions[1] != 0) {
+					videoDimensions = dimensions;
+				}
+			}
+			
+			var videoSrc = x_currentPageXML.getAttribute("url");
+			$pageVideo
+				.data({
+					"src"			:videoSrc,
+					"dimensions"	:videoDimensions,
+					"startEndFrame"	:[Number(x_currentPageXML.getAttribute("startFrame")), Number(x_currentPageXML.getAttribute("endFrame"))]
+				})
+				.attr("title", x_currentPageXML.getAttribute("tip"));
+			
+			this.loadVideo();
+			x_pageLoaded();
+		}
+		
+		this.loadVideo = function() {
+			var $video = $("#pageVideo");
+			$video.mediaPlayer({
+				type			:"video",
+				source			:$video.data("src"),
+				width			:Number($video.data("dimensions")[0]),
+				height			:Number($video.data("dimensions")[1]),
+				startEndFrame	:$video.data("startEndFrame")
+			});
+		}
+	}
+	
+	textVideo.init();
+	
+</script>
+
+<style type="text/css">
+	
+	#textHolder {
+		padding-bottom:	20px;
+	}
+	
+	#transcript {
+		padding-top:	10px;
+		text-align:		left;
+	}
+	
+	#transcriptBtn {
+		margin-top:	10px;
+	}
+	
+</style>
+
+<div id="pageContents">
+	
+	<div class="mobileAlign"> <!-- this tag is only used when viewed on mobiles to change layout -->
+		<div class="panel inline">
+			<div id="pageVideo"></div>
+			<div id="transcriptHolder">
+				<div id="transcript"></div>
+				<button id="transcriptBtn"></button>
+			</div>
+		</div>
+	</div>
+	
+	<div id="textHolder"></div>
+	
+</div>

@@ -1,0 +1,165 @@
+<script type="text/javascript">
+
+	// pageChanged & sizeChanged functions are needed in every model file
+	// other functions for model should also be in here to avoid conflicts
+	var youtuberss = new function() {
+		var $pageContents,
+			$textHolder,
+			$panel,
+			$resultsHolder,
+			searchTerm;
+
+		// function called every time the page is viewed after it has initially loaded
+		this.pageChanged = function() {
+
+		};
+
+		// function called every time the size of the LO is changed
+		this.sizeChanged = function() {
+			if (x_browserInfo.mobile == false) {
+				var $panel = $("#pageContents .panel");
+				$panel.height($x_pageHolder.height() - parseInt($x_pageDiv.css("padding-top")) * 2 - parseInt($panel.css("padding-top")) * 2 - 5);
+			}
+		};
+		
+		this.init = function() {
+			$pageContents = $("#pageContents");
+			$textHolder = $("#textHolder");
+			$panel = $("#pageContents .panel");
+			$resultsHolder = $pageContents.find("#resultsHolder");
+			$("#loadingSpinner p").html(x_getLangInfo(x_languageData.find("fetchResults")[0], "label", "Fetching results..."));
+
+			searchTerm = x_currentPageXML.getAttribute("url");
+			var searchCount = x_currentPageXML.getAttribute("results"),
+				youtubeURL = "http://gdata.youtube.com/feeds/api/videos";
+
+			$.ajax({
+				beforeSend: function() {
+					$('#loadingSpinner').show();
+					x_timer = setTimeout(function() {
+						$("#loadingSpinner").hide();
+						$resultsHolder
+							.html('<div><p>' + x_getLangInfo(x_languageData.find("errorResults")[0], "label", "There was an error loading the results") + '</p></div>')
+							.find("div:even").addClass("shadedDiv");
+					}, 5000);
+				},
+				url: youtubeURL,
+				data: {
+						"vq" : searchTerm,
+						"max-results" : searchCount,
+						"v" : 2,
+						"alt" : "jsonc"
+					},
+				dataType: 'jsonp',
+				jsonpCallback: "youtuberss.listVideos",
+				cache:false,
+				timeout: 5000
+			});
+
+			$textHolder.html(x_addLineBreaks(x_currentPageXML.getAttribute("text")));
+
+			this.sizeChanged();
+			x_pageLoaded();
+		}
+
+		this.listVideos = function(data) {
+			clearTimeout(x_timer);
+			$("#loadingSpinner").hide();
+			var resultsHolder = "";
+			
+			// if language attributes aren't in xml will have to use english fall back
+			var resultsTxt = x_currentPageXML.getAttribute("resultsTxt");
+			if (resultsTxt == undefined) {
+				resultsTxt = "Youtube results for term";
+			}
+			$pageContents.find("#headerHolder").html("<h3>" + resultsTxt + " '" + searchTerm + "'</h3>");
+			if (data.data.totalItems == 0) {
+				resultsHolder = '<div><p>' + x_getLangInfo(x_languageData.find("noResults")[0], "label", "No results returned") + '</p></div>';
+			} else {
+				var safePlayer, hyperlink;
+				$.each(data.data.items, function (index, item) {
+					// item.player.default breaks IE so this is a workaround
+					safePlayer = JSON.parse(JSON.stringify(item.player).replace('"default"', '"standard"'));
+					if (x_browserInfo.iOS == true || x_browserInfo.touchScreen || x_browserInfo.mobile) {
+						hyperlink = '<a href="' + safePlayer.standard + '">' + item.title + '</a>';
+					} else {
+						hyperlink = '<a target="_blank" href="' + safePlayer.standard + '">' + item.title + '</a>';
+					}
+					resultsHolder += '<div><img src="' + item.thumbnail.sqDefault + '" />';
+					resultsHolder += '<p>' + hyperlink + '</p></div>';
+				});
+			}
+			$resultsHolder
+				.html(resultsHolder)
+				.find("div:even").addClass("shadedDiv");
+		};
+	};
+
+	youtuberss.init();
+
+</script>
+
+<style type="text/css">
+
+	#headerHolder {
+		text-align:		center;
+		margin-bottom:	10px;
+	}
+
+	#resultsHolder div {
+		min-height:50px;
+		padding-top:	5px;
+	}
+
+	#resultsHolder div img {
+		width:60px;
+		float:left;
+		padding-left:	5px;
+	}
+
+	#resultsHolder div p {
+		margin:	0 5px 0 70px;
+	}
+
+	.shadedDiv {
+		background-color: #E3FFD6;
+	}
+
+	#loadingSpinner {
+		margin-left: auto;
+  		margin-right: auto;
+		width:180px;
+	}
+
+	.spinner {
+		float:left;
+		margin:-8px 20px 0 0;
+	}
+
+	#loadingSpinner p {
+		font-weight:	bold;
+	}
+	
+	#youtuberssHolder .panel {
+		overflow:	auto;
+	}
+
+</style>
+
+<div id="pageContents">
+	
+	<div class="splitScreen medium">
+		
+		<div id="textHolder" class="left" tabindex="1"></div>
+		
+		<div id="youtuberssHolder" class="right">
+			<div class="panel">
+				<div id="loadingSpinner"><div class="spinner"></div><p></p></div>
+				<div id="headerHolder"></div>
+				<div id="resultsHolder"></div>
+			</div>
+		</div>
+		
+	</div>
+
+</div>
